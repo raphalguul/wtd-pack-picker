@@ -63,7 +63,7 @@ Set-Content -Path (Join-Path $distDir "start.bat") -Value $startBat
 # Install production dependencies
 Write-Host "Installing dependencies..."
 Push-Location $distDir
-npm install --production --no-audit --no-fund 2>&1 | Out-Null
+npm install --omit=dev --no-audit --no-fund 2>&1 | Out-Null
 Pop-Location
 
 # Create zip
