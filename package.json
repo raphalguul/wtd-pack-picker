@@ -2,13 +2,40 @@
   "name": "wtd-pack-picker",
   "version": "1.0.0",
   "description": "External pack selector for What The Dub",
-  "main": "server.js",
+  "main": "main.js",
   "scripts": {
-    "start": "node server.js",
-    "build-save-handler": "powershell -ExecutionPolicy Bypass -File save-handler/build.ps1"
+    "start": "electron .",
+    "dev": "node server.js",
+    "build-save-handler": "powershell -ExecutionPolicy Bypass -File save-handler/build.ps1",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.wtd.pack-picker",
+    "productName": "WTD Pack Picker",
+    "directories": {
+      "output": "release"
+    },
+    "extraResources": [
+      { "from": "save-handler/bin", "to": "save-handler" },
+      { "from": "workshop-names.json", "to": "workshop-names.json" }
+    ],
+    "files": [
+      "main.js",
+      "server.js",
+      "renderer/**/*",
+      "lib/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "portable"
+    }
   }
 }

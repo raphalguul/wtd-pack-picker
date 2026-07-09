@@ -48,7 +48,12 @@ if (settings.offlineMode === undefined) {
   saveSettings(settings);
 }
 
-let cacheManager = new CacheManager(cacheFilePath, path.join(__dirname, 'workshop-names.json'));
+let seedPath = path.join(__dirname, 'workshop-names.json');
+if (process.resourcesPath) {
+  const alt = path.join(process.resourcesPath, 'workshop-names.json');
+  if (fs.existsSync(alt)) seedPath = alt;
+}
+let cacheManager = new CacheManager(cacheFilePath, seedPath);
 let presetManager = new PresetManager(presetsFilePath);
 let workshopFetcher = new WorkshopFetcher(cacheManager, getThumbnailDir());
 workshopFetcher.setOffline(settings.offlineMode);
@@ -360,6 +365,9 @@ server.listen(PORT, async () => {
   console.log(`Saves found: ${getSavePaths().length}`);
   console.log(`Cache: ${cacheManager.getSummary().total} names cached`);
 
-  const { exec } = require('child_process');
-  exec(`start "" "http://localhost:${PORT}"`, () => {});
+  // Only auto-open browser when launched directly (not via Electron)
+  if (!process.versions.electron) {
+    const { exec } = require('child_process');
+    exec(`start "" "http://localhost:${PORT}"`, () => {});
+  }
 });

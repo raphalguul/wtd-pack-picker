@@ -1,10 +1,9 @@
 node_modules/
 release/
 dist/
-.env
 *.bak
-wtd-pack-picker/
 *.zip
 *.7z
 .DS_Store
 Thumbs.db
+.env
