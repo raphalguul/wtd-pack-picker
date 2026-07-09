@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WTD Pack Picker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Connecting...</p>
+  </div>
+
+  <div id="error-banner" class="hidden"></div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1>WTD Pack Picker</h1>
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" id="search" placeholder="Search packs..." autocomplete="off">
+        </div>
+        <div class="toolbar-actions">
+          <button id="btn-enable-all">Enable All</button>
+          <button id="btn-disable-all">Disable All</button>
+          <button id="btn-revert">Revert</button>
+          <button id="btn-apply" class="apply-btn">Apply</button>
+          <button id="btn-start-game">Start Game</button>
+          <button id="btn-presets" class="preset-btn">Presets ▾</button>
+          <button id="btn-settings" class="settings-btn">⚙</button>
+        </div>
+      </div>
+      <div id="preset-menu" class="dropdown hidden">
+        <div class="preset-list"></div>
+        <div class="preset-new">
+          <input type="text" id="preset-name" placeholder="New preset name..." autocomplete="off">
+          <button id="btn-save-preset">Save Current</button>
+        </div>
+      </div>
+      <div id="status-bar">
+        <span id="status-text">Ready</span>
+        <span id="save-indicator" class="modified hidden">● Modified</span>
+        <span id="fetcher-status" class="fetcher-status hidden"></span>
+      </div>
+    </header>
+
+    <main id="pack-grid">
+      <div class="placeholder-msg">Select a profile to load clip packs...</div>
+    </main>
+
+    <div id="profile-picker" class="profile-picker hidden">
+      <div class="profile-label">Profile:</div>
+      <select id="profile-select"></select>
+      <button id="btn-load-profile">Load</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

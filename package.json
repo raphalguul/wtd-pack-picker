@@ -1,0 +1,14 @@
+{
+  "name": "wtd-pack-picker",
+  "version": "1.0.0",
+  "description": "External pack selector for What The Dub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build-save-handler": "powershell -ExecutionPolicy Bypass -File save-handler/build.ps1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.8.1"
+  }
+}
