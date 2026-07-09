@@ -20,17 +20,17 @@ $ErrorActionPreference = $prev
 Pop-Location
 
 # Run electron-builder
-Write-Host "Building Electron package..."
+Write-Host "Building NSIS installer..."
 Push-Location $PSScriptRoot
 $env:ELECTRON_SKIP_BINARY_DOWNLOAD = "0"
-npx electron-builder --win portable *>&1 | ForEach-Object { if ($_ -isnot [System.Management.Automation.ErrorRecord]) { $_ } }
+npx electron-builder --win *>&1 | ForEach-Object { if ($_ -isnot [System.Management.Automation.ErrorRecord]) { $_ } }
 if ($LASTEXITCODE -ne 0) { throw "electron-builder failed with exit code $LASTEXITCODE" }
 Pop-Location
 
-$exe = Join-Path $PSScriptRoot "release\WTD Pack Picker.exe"
-if (Test-Path $exe) {
-    $sizeMB = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-    Write-Host "Done: $exe ($sizeMB MB)"
+$setup = Get-ChildItem (Join-Path $PSScriptRoot "release") -Filter "WTD Pack Picker Setup*.exe" | Select-Object -First 1
+if ($setup) {
+    $sizeMB = [math]::Round($setup.Length / 1MB, 1)
+    Write-Host "Done: $($setup.FullName) ($sizeMB MB)"
 } else {
     Write-Host "Build completed. Check release/ folder for output."
 }
