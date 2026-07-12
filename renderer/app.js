@@ -418,6 +418,293 @@ socket.on('name-resolved', ({ id, name }) => {
   }
 });
 
+// Music management
+const musicOverlay = document.getElementById('music-overlay');
+const musicClipsList = document.getElementById('music-clips-list');
+let musicClipNames = [];
+let musicBusy = false;
+
+const musicNameMap = {
+  'WTD_CREDITS_STEREO MIX#01_200122': 'Opening Music',
+  'WTD_CODE ROOM_STEREO MIX#04_200125': 'Waiting for Players',
+  'WTD_ENTER DUB_STEREO MIX#01_200122': 'Waiting for Dubs / Pause',
+  'WTD_END CREDITS_FULL_STEREO MIX#10_200211': 'End Credits',
+  'WTD_END CREDITS_LOOP_STEREO MIX#11_200211': 'Fallback after Opening / Credits',
+  'WTD_CODE ROOM_BASS AND PERC_200127': 'Tutorial',
+  'WTD_CODE ROOM_BASS AND DRUMS_200127': 'Round Transition',
+};
+
+const musicClipOrder = [
+  'WTD_CREDITS_STEREO MIX#01_200122',
+  'WTD_CODE ROOM_STEREO MIX#04_200125',
+  'WTD_ENTER DUB_STEREO MIX#01_200122',
+  'WTD_END CREDITS_FULL_STEREO MIX#10_200211',
+  'WTD_END CREDITS_LOOP_STEREO MIX#11_200211',
+  'WTD_CODE ROOM_BASS AND PERC_200127',
+  'WTD_CODE ROOM_BASS AND DRUMS_200127',
+];
+
+function musicDisplayName(clip) {
+  return musicNameMap[clip.name] || clip.name;
+}
+
+async function loadMusicClips() {
+  musicClipsList.innerHTML = '<div class="placeholder-msg">Loading clips...</div>';
+
+  try {
+    const status = await api('/api/status');
+    if (!status.gamePathValid) {
+      musicClipsList.innerHTML = '<div class="music-error">Game path not configured. Open settings first.</div>';
+      return;
+    }
+
+    const clips = await api('/api/music/clips');
+    renderMusicClips(clips);
+  } catch (e) {
+    musicClipsList.innerHTML = `<div class="music-error">Failed to load clips: ${e.message}</div>`;
+  }
+}
+
+function renderMusicClips(clips) {
+  musicClipsList.innerHTML = '';
+
+  const musicClips = clips.filter(c =>
+    (c.name.includes('STEREO MIX') || c.name.includes('BASS AND')) &&
+    !c.name.includes('STING') &&
+    !c.name.includes('Applause')
+  );
+
+  musicClips.sort((a, b) => {
+    const ai = musicClipOrder.indexOf(a.name);
+    const bi = musicClipOrder.indexOf(b.name);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  musicClipNames = musicClips.map(c => c.name);
+
+  if (musicClips.length === 0) {
+    musicClipsList.innerHTML = '<div class="music-error">No music clips found</div>';
+    return;
+  }
+
+  for (const clip of musicClips) {
+    const item = document.createElement('div');
+    item.className = 'music-clip-item';
+
+    const name = document.createElement('div');
+    name.className = 'music-clip-name';
+    name.textContent = musicDisplayName(clip);
+    name.title = clip.name;
+
+    const duration = document.createElement('div');
+    duration.className = 'music-clip-duration';
+    duration.textContent = `${clip.duration}s`;
+
+    const fadeLabel = document.createElement('label');
+    fadeLabel.className = 'music-fade-label';
+    const fadeCb = document.createElement('input');
+    fadeCb.type = 'checkbox';
+    fadeCb.className = 'fade-toggle';
+    fadeCb.checked = true;
+    fadeCb.dataset.clipName = clip.name;
+    fadeLabel.appendChild(fadeCb);
+    fadeLabel.appendChild(document.createTextNode('Fade'));
+
+    const replaceBtn = document.createElement('button');
+    replaceBtn.className = 'music-clip-replace';
+    replaceBtn.textContent = 'Replace';
+    replaceBtn.addEventListener('click', () => replaceMusicClip(clip.name, item));
+
+    item.appendChild(name);
+    item.appendChild(duration);
+    item.appendChild(fadeLabel);
+    item.appendChild(replaceBtn);
+    musicClipsList.appendChild(item);
+  }
+}
+
+async function replaceMusicClip(clipName, itemEl) {
+  if (musicBusy) return;
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) {
+      input.remove();
+      return;
+    }
+
+    setMusicBusy(true);
+
+    const statusEl = document.createElement('div');
+    statusEl.className = 'music-clip-status';
+    statusEl.textContent = 'Replacing...';
+
+    const existingStatus = itemEl.querySelector('.music-clip-status');
+    if (existingStatus) existingStatus.remove();
+
+    const replaceBtn = itemEl.querySelector('.music-clip-replace');
+    replaceBtn.disabled = true;
+    itemEl.appendChild(statusEl);
+
+    const fadeCb = itemEl.querySelector('.fade-toggle');
+    const fade = fadeCb ? fadeCb.checked : true;
+
+    try {
+      const formData = new FormData();
+      formData.append('clipName', clipName);
+      formData.append('audioFile', file);
+      formData.append('fade', fade ? 'true' : 'false');
+
+      const res = await fetch('/api/music/replace', {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      await res.json();
+      statusEl.textContent = 'Done!';
+      statusEl.style.color = 'var(--success)';
+    } catch (e) {
+      statusEl.textContent = 'Failed: ' + e.message;
+      statusEl.style.color = 'var(--danger)';
+    }
+
+    replaceBtn.disabled = false;
+    input.remove();
+    setMusicBusy(false);
+  });
+
+  input.click();
+}
+
+async function restoreAllMusic() {
+  if (musicBusy) return;
+  setMusicBusy(true);
+
+  try {
+    const status = await api('/api/status');
+    if (status.gameRunning) {
+      showError('Game is running. Close it first.');
+      return;
+    }
+
+    await api('/api/music/restore', { method: 'POST' });
+    showError('Original audio restored!');
+    errorBanner.style.background = 'var(--success)';
+    setTimeout(() => { errorBanner.style.background = ''; }, 2000);
+  } catch (e) {
+    showError('Failed to restore: ' + e.message);
+  } finally {
+    setMusicBusy(false);
+  }
+}
+
+async function replaceAllMusic() {
+  if (musicBusy) return;
+  if (musicClipNames.length === 0) {
+    showError('No music clips loaded');
+    return;
+  }
+
+  const status = await api('/api/status');
+  if (status.gameRunning) {
+    showError('Game is running. Close it first.');
+    return;
+  }
+
+  const fileInput = document.getElementById('music-replace-all-file');
+  const statusEl = document.getElementById('music-batch-status');
+  const btn = document.getElementById('music-replace-all-btn');
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    setMusicBusy(true);
+    btn.disabled = true;
+    statusEl.textContent = 'Normalizing and replacing...';
+    statusEl.style.color = '';
+
+    try {
+      const toggles = document.querySelectorAll('.fade-toggle');
+      const fades = {};
+      toggles.forEach(cb => {
+        fades[cb.dataset.clipName] = cb.checked;
+      });
+
+      const formData = new FormData();
+      formData.append('clipNames', JSON.stringify(musicClipNames));
+      formData.append('audioFile', file);
+      formData.append('fades', JSON.stringify(fades));
+
+      const res = await fetch('/api/music/replace-batch', {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      await res.json();
+      statusEl.textContent = 'Done! All music replaced.';
+      statusEl.style.color = 'var(--success)';
+    } catch (e) {
+      statusEl.textContent = 'Failed: ' + e.message;
+      statusEl.style.color = 'var(--danger)';
+    }
+
+    btn.disabled = false;
+    setMusicBusy(false);
+  }, { once: true });
+
+  fileInput.click();
+}
+
+function setMusicBusy(busy) {
+  musicBusy = busy;
+  const panel = document.querySelector('.music-panel');
+  const closeBtn = document.getElementById('music-close');
+  const allBtns = document.querySelectorAll('.music-clip-replace, #music-replace-all-btn, #music-restore-all');
+
+  if (busy) {
+    panel.classList.add('music-busy');
+    closeBtn.disabled = true;
+    allBtns.forEach(b => { b.disabled = true; });
+  } else {
+    panel.classList.remove('music-busy');
+    closeBtn.disabled = false;
+    allBtns.forEach(b => { b.disabled = false; });
+  }
+}
+
+document.getElementById('btn-music').addEventListener('click', () => {
+  musicOverlay.classList.remove('hidden');
+  loadMusicClips();
+});
+
+document.getElementById('music-close').addEventListener('click', () => {
+  if (musicBusy) return;
+  musicOverlay.classList.add('hidden');
+});
+
+document.getElementById('music-replace-all-btn').addEventListener('click', replaceAllMusic);
+document.getElementById('music-restore-all').addEventListener('click', restoreAllMusic);
+
+musicOverlay.addEventListener('click', (e) => {
+  if (musicBusy) return;
+  if (e.target === musicOverlay) {
+    musicOverlay.classList.add('hidden');
+  }
+});
+
 // Keyboard
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -426,6 +713,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     if (!presetMenu.classList.contains('hidden')) presetMenu.classList.add('hidden');
+    if (!musicOverlay.classList.contains('hidden') && !musicBusy) musicOverlay.classList.add('hidden');
   }
 });
 

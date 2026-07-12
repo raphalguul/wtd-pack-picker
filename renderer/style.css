@@ -462,3 +462,172 @@ button:active {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-dim);
 }
+
+.music-btn {
+  border-color: #9b59b6;
+  color: #9b59b6;
+}
+
+.music-btn:hover {
+  background: #9b59b6;
+  color: white;
+}
+
+.music-panel {
+  width: 560px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.music-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.music-batch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--bg-lighter);
+  border-radius: 6px;
+}
+
+#music-replace-all-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg);
+  white-space: nowrap;
+}
+
+#music-replace-all-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+#music-replace-all-btn:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+#music-batch-status {
+  font-size: 11px;
+  min-width: 0;
+}
+
+.music-clips-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 50vh;
+  margin-bottom: 12px;
+}
+
+.music-clip-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.music-clip-item:last-child {
+  border-bottom: none;
+}
+
+.music-clip-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.music-clip-duration {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 45px;
+  text-align: right;
+}
+
+.music-fade-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.music-fade-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.music-clip-replace {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.music-clip-replace:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.music-clip-status {
+  font-size: 11px;
+  color: var(--success);
+  min-width: 60px;
+  text-align: right;
+}
+
+.music-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.music-actions button {
+  padding: 6px 14px;
+}
+
+#music-restore-all {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+#music-restore-all:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.music-loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 20px;
+  font-size: 12px;
+}
+
+.music-error {
+  text-align: center;
+  color: var(--danger);
+  padding: 20px;
+  font-size: 12px;
+}
+
+.music-busy #music-close,
+.music-busy #music-restore-all {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.music-busy .music-clip-replace:disabled,
+.music-busy #music-replace-all-btn:disabled {
+  opacity: 0.5;
+}

@@ -27,6 +27,7 @@
           <button id="btn-revert">Revert</button>
           <button id="btn-apply" class="apply-btn">Apply</button>
           <button id="btn-start-game">Start Game</button>
+          <button id="btn-music" class="music-btn">♫ Music</button>
           <button id="btn-presets" class="preset-btn">Presets ▾</button>
           <button id="btn-settings" class="settings-btn">⚙</button>
         </div>
@@ -53,6 +54,25 @@
       <div class="profile-label">Profile:</div>
       <select id="profile-select"></select>
       <button id="btn-load-profile">Load</button>
+    </div>
+  </div>
+
+  <div id="music-overlay" class="settings-overlay hidden">
+    <div class="settings-panel music-panel">
+      <h2>Music Replacement</h2>
+      <p class="music-hint">Pick an audio file to replace all music at once, or click Replace per track. Auto-converts and normalizes loudness.</p>
+      <div class="music-batch">
+        <button id="music-replace-all-btn">Replace All Music</button>
+        <input type="file" id="music-replace-all-file" accept="audio/*" style="display:none">
+        <span id="music-batch-status" class="music-clip-status"></span>
+      </div>
+      <div id="music-clips-list" class="music-clips-list">
+        <div class="placeholder-msg">Loading clips...</div>
+      </div>
+      <div class="music-actions">
+        <button id="music-restore-all">Restore Original</button>
+        <button id="music-close">Close</button>
+      </div>
     </div>
   </div>
 

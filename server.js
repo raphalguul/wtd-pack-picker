@@ -2,8 +2,11 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const os = require('os');
+const multer = require('multer');
 const { detectGamePath, detectSavePath, isGameRunning } = require('./lib/steam-detector');
 const { readSave, writeSave } = require('./lib/save-bridge');
+const { listClips, extractClip, extractAllClips, replaceClip, replaceBatch, restoreBundle } = require('./lib/audio-bridge');
 const { WorkshopFetcher } = require('./lib/workshop-fetcher');
 const { CacheManager } = require('./lib/cache-manager');
 const { PresetManager } = require('./lib/presets');
@@ -11,6 +14,15 @@ const { findLocalThumbnail, findWorkshopDirs } = require('./lib/thumbnail-scanne
 
 const app = express();
 app.use(express.json());
+
+const uploadDir = path.join(os.tmpdir(), 'wtd-uploads');
+const upload = multer({
+  dest: uploadDir,
+  limits: { fileSize: 100 * 1024 * 1024 }
+});
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const PORT = process.env.PORT || 4500;
 
@@ -345,6 +357,129 @@ app.post('/api/start-game', (req, res) => {
   const { exec } = require('child_process');
   exec(`start "" "${exe}"`, { cwd: gp, windowsHide: true });
   res.json({ success: true });
+});
+
+// Music replacement endpoints
+app.get('/api/music/clips', async (req, res) => {
+  try {
+    const gamePath = getGamePath();
+    if (!gamePath) return res.status(400).json({ error: 'Game path not configured' });
+
+    const bundlePath = path.join(gamePath, 'WhatTheDub_Data', 'StreamingAssets', 'AssetBundles', 'audio-manager');
+    if (!fs.existsSync(bundlePath)) return res.status(404).json({ error: 'Audio bundle not found' });
+
+    const clips = await listClips(gamePath);
+    res.json(clips);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/music/replace', upload.single('audioFile'), async (req, res) => {
+  try {
+    if (isGameRunning()) {
+      return res.status(409).json({ error: 'Game is running. Close it first.' });
+    }
+
+    const gamePath = getGamePath();
+    if (!gamePath) return res.status(400).json({ error: 'Game path not configured' });
+
+    const clipName = req.body.clipName;
+    const inputFile = req.file;
+    const fade = req.body.fade !== 'false';
+
+    if (!clipName || !inputFile) {
+      return res.status(400).json({ error: 'clipName and audioFile are required' });
+    }
+
+    const result = await replaceClip(gamePath, clipName, inputFile.path, fade);
+
+    try { fs.unlinkSync(inputFile.path); } catch {}
+
+    res.json(result);
+  } catch (e) {
+    if (req.file) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/music/replace-batch', upload.single('audioFile'), async (req, res) => {
+  try {
+    if (isGameRunning()) {
+      return res.status(409).json({ error: 'Game is running. Close it first.' });
+    }
+
+    const gamePath = getGamePath();
+    if (!gamePath) return res.status(400).json({ error: 'Game path not configured' });
+
+    const inputFile = req.file;
+    if (!inputFile) {
+      return res.status(400).json({ error: 'audioFile is required' });
+    }
+
+    let clipNames;
+    try {
+      clipNames = JSON.parse(req.body.clipNames || '[]');
+    } catch {
+      return res.status(400).json({ error: 'clipNames must be a JSON array of names' });
+    }
+
+    let fades = {};
+    try {
+      fades = JSON.parse(req.body.fades || '{}');
+    } catch {}
+
+    if (!Array.isArray(clipNames) || clipNames.length === 0) {
+      return res.status(400).json({ error: 'clipNames must be a non-empty array' });
+    }
+
+    const replacements = clipNames.map(name => [name, inputFile.path]);
+    const result = await replaceBatch(gamePath, replacements, fades);
+
+    try { fs.unlinkSync(inputFile.path); } catch {}
+
+    res.json(result);
+  } catch (e) {
+    if (req.file) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/music/extract', async (req, res) => {
+  try {
+    const gamePath = getGamePath();
+    if (!gamePath) return res.status(400).json({ error: 'Game path not configured' });
+
+    const { clipName, outputPath } = req.body;
+    if (!clipName || !outputPath) {
+      return res.status(400).json({ error: 'clipName and outputPath are required' });
+    }
+
+    const result = await extractClip(gamePath, clipName, outputPath);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/music/restore', async (req, res) => {
+  try {
+    if (isGameRunning()) {
+      return res.status(409).json({ error: 'Game is running. Close it first.' });
+    }
+
+    const gamePath = getGamePath();
+    if (!gamePath) return res.status(400).json({ error: 'Game path not configured' });
+
+    const result = await restoreBundle(gamePath);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/', (req, res) => {
