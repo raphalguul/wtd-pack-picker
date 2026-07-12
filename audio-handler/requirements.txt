@@ -1,0 +1,9 @@
+pyinstaller==6.17.0
+UnityPy==1.25.2
+pydub==0.25.1
+fsb5==1.0
+lz4
+brotli
+fsspec
+attrs
+pywin32-ctypes

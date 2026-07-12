@@ -8,6 +8,7 @@ dist/
 Thumbs.db
 .env
 *.spec
+__pycache__/
 audio-handler/bin/
 audio-handler/build_venv/
 audio-handler/build/
