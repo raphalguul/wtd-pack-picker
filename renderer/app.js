@@ -250,12 +250,13 @@ function showError(msg) {
 }
 
 function showSettings(force = false) {
-  const existing = document.querySelector('.settings-overlay');
+  const existing = document.getElementById('settings-overlay');
   if (existing) existing.remove();
 
   api('/api/status').then(status => {
     const overlay = document.createElement('div');
-    overlay.className = 'settings-overlay';
+    overlay.id = 'settings-overlay';
+    overlay.className = 'overlay';
 
     const offlineChecked = status.offlineMode ? 'checked' : '';
 
@@ -286,6 +287,10 @@ function showSettings(force = false) {
     `;
 
     document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
 
     $('#settings-cancel').addEventListener('click', () => {
       overlay.remove();
@@ -444,6 +449,8 @@ const musicClipOrder = [
   'WTD_CODE ROOM_BASS AND DRUMS_200127',
 ];
 
+let musicFfmpegOk = false;
+
 function musicDisplayName(clip) {
   return musicNameMap[clip.name] || clip.name;
 }
@@ -455,6 +462,23 @@ async function loadMusicClips() {
     const status = await api('/api/status');
     if (!status.gamePathValid) {
       musicClipsList.innerHTML = '<div class="music-error">Game path not configured. Open settings first.</div>';
+      setMusicFfmpegGate(false);
+      return;
+    }
+
+    const ffmpeg = await api('/api/music/status');
+    musicFfmpegOk = ffmpeg.ffmpegAvailable;
+
+    if (!musicFfmpegOk) {
+      musicClipsList.innerHTML = `
+        <div class="music-ffmpeg-warning">
+          <strong>FFmpeg is required for audio replacement.</strong>
+          <p>FFmpeg was not found on your system. It is needed for
+          audio conversion and loudness normalization.</p>
+          <p>Download from <a href="https://ffmpeg.org/download.html" target="_blank">ffmpeg.org/download.html</a>,
+          add it to your PATH, then restart the app.</p>
+        </div>`;
+      setMusicFfmpegGate(false);
       return;
     }
 
@@ -462,6 +486,18 @@ async function loadMusicClips() {
     renderMusicClips(clips);
   } catch (e) {
     musicClipsList.innerHTML = `<div class="music-error">Failed to load clips: ${e.message}</div>`;
+    setMusicFfmpegGate(false);
+  }
+}
+
+function setMusicFfmpegGate(ok) {
+  const allBtn = document.getElementById('music-replace-all-btn');
+  const restoreBtn = document.getElementById('music-restore-all');
+  if (allBtn) allBtn.disabled = !ok;
+  if (restoreBtn) restoreBtn.disabled = !ok;
+  if (!ok) {
+    musicClipsList.innerHTML = musicClipsList.innerHTML ||
+      '<div class="music-error">FFmpeg not available &#8212; audio replacement disabled</div>';
   }
 }
 
@@ -524,7 +560,7 @@ function renderMusicClips(clips) {
 }
 
 async function replaceMusicClip(clipName, itemEl) {
-  if (musicBusy) return;
+  if (musicBusy || !musicFfmpegOk) return;
 
   const input = document.createElement('input');
   input.type = 'file';
@@ -586,7 +622,7 @@ async function replaceMusicClip(clipName, itemEl) {
 }
 
 async function restoreAllMusic() {
-  if (musicBusy) return;
+  if (musicBusy || !musicFfmpegOk) return;
   setMusicBusy(true);
 
   try {
@@ -608,7 +644,7 @@ async function restoreAllMusic() {
 }
 
 async function replaceAllMusic() {
-  if (musicBusy) return;
+  if (musicBusy || !musicFfmpegOk) return;
   if (musicClipNames.length === 0) {
     showError('No music clips loaded');
     return;

@@ -354,7 +354,7 @@ button:active {
   font-size: 11px;
 }
 
-.settings-overlay {
+.overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -630,4 +630,28 @@ button:active {
 .music-busy .music-clip-replace:disabled,
 .music-busy #music-replace-all-btn:disabled {
   opacity: 0.5;
+}
+
+.music-ffmpeg-warning {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--warning, #e6a817);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.music-ffmpeg-warning strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.music-ffmpeg-warning p {
+  margin: 4px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.music-ffmpeg-warning a {
+  color: var(--accent);
 }

@@ -6,7 +6,7 @@ const os = require('os');
 const multer = require('multer');
 const { detectGamePath, detectSavePath, isGameRunning } = require('./lib/steam-detector');
 const { readSave, writeSave } = require('./lib/save-bridge');
-const { listClips, extractClip, extractAllClips, replaceClip, replaceBatch, restoreBundle } = require('./lib/audio-bridge');
+const { listClips, extractClip, extractAllClips, replaceClip, replaceBatch, restoreBundle, checkFfmpeg } = require('./lib/audio-bridge');
 const { WorkshopFetcher } = require('./lib/workshop-fetcher');
 const { CacheManager } = require('./lib/cache-manager');
 const { PresetManager } = require('./lib/presets');
@@ -360,6 +360,15 @@ app.post('/api/start-game', (req, res) => {
 });
 
 // Music replacement endpoints
+app.get('/api/music/status', async (req, res) => {
+  try {
+    const ffmpegAvailable = await checkFfmpeg();
+    res.json({ ffmpegAvailable });
+  } catch (e) {
+    res.json({ ffmpegAvailable: false });
+  }
+});
+
 app.get('/api/music/clips', async (req, res) => {
   try {
     const gamePath = getGamePath();

@@ -1,6 +1,6 @@
 {
   "name": "wtd-pack-picker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "External pack selector for What The Dub",
   "main": "main.js",
   "scripts": {
@@ -30,7 +30,7 @@
         "to": "save-handler"
       },
       {
-        "from": "audio-handler",
+        "from": "audio-handler/bin",
         "to": "audio-handler"
       },
       {
@@ -43,7 +43,11 @@
       "server.js",
       "renderer/**/*",
       "lib/**/*",
-      "node_modules/**/*"
+      "!**/*.map",
+      "!**/test/**",
+      "!**/tests/**",
+      "!**/docs/**",
+      "!**/*.md"
     ],
     "win": {
       "target": "nsis"

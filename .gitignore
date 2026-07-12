@@ -7,3 +7,7 @@ dist/
 .DS_Store
 Thumbs.db
 .env
+*.spec
+audio-handler/bin/
+audio-handler/build_venv/
+audio-handler/build/

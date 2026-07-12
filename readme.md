@@ -2,10 +2,23 @@
 
 This is an external clip pack manager for **What the Dub?!** It allows you to select the available clip packs before launching the game. It's a little more versatile than the built-in selector (which still works even if you use this tool). Might be useful if you have many mods installed but don't want them always available at the same time. Pack Picker supports saving different pack configurations for quick switching.
 
+You can also replace certain music files within the game.
+
 ![WTD Pack Picker Preview Screenshot.](/previews/preview.jpg)
+
+## Requirements
+
+To replace game audio, you will need to install [ffmpeg](https://ffmpeg.org/download.html).
 
 ## How to run
 
+```
+pip install -r audio-handler/requirements.txt
+```
+```
+npm install
+
+```
 ```
 npm start
 ```
@@ -25,3 +38,4 @@ powershell -ExecutionPolicy Bypass -File build-release.ps1
 - You can save and reload pack presets
 - You can start the game with new selection straight from Pack Picker
 - You can revert settings if necessary (reloads the last settings that were applied)
+- Allows users to replace music files in WTD
