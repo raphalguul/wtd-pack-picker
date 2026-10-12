@@ -17,7 +17,6 @@ pip install -r audio-handler/requirements.txt
 ```
 ```
 npm install
-
 ```
 ```
 npm start
