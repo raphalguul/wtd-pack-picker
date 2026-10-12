@@ -39,3 +39,13 @@ powershell -ExecutionPolicy Bypass -File build-release.ps1
 - You can start the game with new selection straight from Pack Picker
 - You can revert settings if necessary (reloads the last settings that were applied)
 - Allows users to replace music files in WTD
+- Game can run embedded into the pack picker
+- Users can switch back to the picker via shortcut (only in embedded mode)
+
+## Embedded Play
+
+Pack Picker can launch the game embedded. This has two advantages:
+- If you're streaming the game, embedded play is more seamless because there is no app switching
+- When embedded, you can instantly terminate the game and switch back to the pack picker with a shortcut (default: alt+X)
+
+Note that starting the game embedded will trigger a warning from Steam because the app is passing custom launch parameters to the game. This is for your safety and cannot be disabled.
