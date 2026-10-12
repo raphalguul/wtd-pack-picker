@@ -7,6 +7,7 @@
     "start": "electron .",
     "dev": "node server.js",
     "build-save-handler": "powershell -ExecutionPolicy Bypass -File save-handler/build.ps1",
+    "build-window-embed": "powershell -ExecutionPolicy Bypass -File window-embed/build.ps1",
     "dist": "electron-builder"
   },
   "dependencies": {
@@ -32,6 +33,10 @@
       {
         "from": "audio-handler/bin",
         "to": "audio-handler"
+      },
+      {
+        "from": "window-embed/bin",
+        "to": "window-embed"
       },
       {
         "from": "workshop-names.json",

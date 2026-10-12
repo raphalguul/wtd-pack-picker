@@ -12,3 +12,5 @@ __pycache__/
 audio-handler/bin/
 audio-handler/build_venv/
 audio-handler/build/
+save-handler/bin/
+window-embed/bin/

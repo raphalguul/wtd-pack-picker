@@ -6,11 +6,14 @@ const os = require('os');
 const multer = require('multer');
 const { detectGamePath, detectSavePath, isGameRunning } = require('./lib/steam-detector');
 const { readSave, writeSave } = require('./lib/save-bridge');
-const { listClips, extractClip, extractAllClips, replaceClip, replaceBatch, restoreBundle, checkFfmpeg } = require('./lib/audio-bridge');
+const { listClips, extractClip, replaceClip, replaceBatch, restoreBundle, checkFfmpeg } = require('./lib/audio-bridge');
 const { WorkshopFetcher } = require('./lib/workshop-fetcher');
 const { CacheManager } = require('./lib/cache-manager');
 const { PresetManager } = require('./lib/presets');
 const { findLocalThumbnail, findWorkshopDirs } = require('./lib/thumbnail-scanner');
+const { WorkshopCatalog } = require('./lib/workshop-catalog');
+const gameLauncher = require('./lib/game-launcher');
+const { getMainWindow } = require('./lib/app-window');
 
 const app = express();
 app.use(express.json());
@@ -59,19 +62,50 @@ if (settings.offlineMode === undefined) {
   settings.offlineMode = true;
   saveSettings(settings);
 }
+if (settings.embedGame === undefined) {
+  settings.embedGame = true;
+  saveSettings(settings);
+}
+if (settings.fullscreen === undefined) {
+  settings.fullscreen = true;
+  saveSettings(settings);
+}
+if (settings.killHotkey === undefined) {
+  settings.killHotkey = 'Alt+X';
+  saveSettings(settings);
+}
 
 let seedPath = path.join(__dirname, 'workshop-names.json');
 if (process.resourcesPath) {
   const alt = path.join(process.resourcesPath, 'workshop-names.json');
   if (fs.existsSync(alt)) seedPath = alt;
 }
+
 let cacheManager = new CacheManager(cacheFilePath, seedPath);
 let presetManager = new PresetManager(presetsFilePath);
 let workshopFetcher = new WorkshopFetcher(cacheManager, getThumbnailDir());
 workshopFetcher.setOffline(settings.offlineMode);
 
+const workshopCatalog = new WorkshopCatalog({ seedPath, cacheManager });
+
 workshopFetcher.on('name-resolved', ({ id, name }) => {
   io && io.emit('name-resolved', { id, name });
+});
+
+workshopCatalog.on('refresh-started', () => {
+  io && io.emit('catalog-refresh-started');
+});
+
+workshopCatalog.on('progress', ({ fetched }) => {
+  io && io.emit('catalog-refresh-progress', { fetched });
+});
+
+workshopCatalog.on('refresh-complete', (data) => {
+  io && io.emit('catalog-refresh-complete', data);
+});
+
+workshopCatalog.on('error', (err) => {
+  io && io.emit('catalog-refresh-error', err);
 });
 
 function getGamePath() {
@@ -142,6 +176,7 @@ function scanLocalWorkshopPacks(wsDir) {
         packs.push({
           id: entry.name,
           name: (cached && cached.name) ? cached.name : null,
+          creator: (cached && cached.creator) ? cached.creator : null,
           thumbnailPath: (cached && cached.thumbnailPath) ? cached.thumbnailPath : null,
           isDefault: false,
         });
@@ -186,10 +221,50 @@ function resolveLocalThumbnails(packs, wsDir, thumbDir) {
 
 async function resolvePacksWithSave(steamId) {
   const wsDir = getWorkshopDir();
-  const packs = scanLocalWorkshopPacks(wsDir);
+  const installedPacks = scanLocalWorkshopPacks(wsDir);
 
   const thumbDir = getThumbnailDir();
-  resolveLocalThumbnails(packs, wsDir, thumbDir);
+  resolveLocalThumbnails(installedPacks, wsDir, thumbDir);
+
+  const allKnownPacks = new Map();
+  for (const pack of installedPacks) {
+    pack.installed = true;
+    allKnownPacks.set(pack.id, pack);
+  }
+
+  const allCached = cacheManager.getAll();
+  for (const [id, cached] of Object.entries(allCached)) {
+    if (id === '_lastFetch' || allKnownPacks.has(id)) continue;
+    allKnownPacks.set(id, {
+      id,
+      name: cached.name || null,
+      creator: cached.creator || null,
+      thumbnailPath: cached.thumbnailPath || null,
+      isDefault: false,
+      installed: false,
+    });
+  }
+
+  let packs = [...allKnownPacks.values()];
+  const defaultPack = packs.find(p => p.isDefault);
+  const nonDefaultPacks = packs.filter(p => !p.isDefault);
+
+  const installed = nonDefaultPacks.filter(p => p.installed).sort((a, b) => {
+    const na = (a.name || a.id).toLowerCase();
+    const nb = (b.name || b.id).toLowerCase();
+    return na.localeCompare(nb);
+  });
+
+  const uninstalled = nonDefaultPacks.filter(p => !p.installed).sort((a, b) => {
+    const na = (a.name || a.id).toLowerCase();
+    const nb = (b.name || b.id).toLowerCase();
+    return na.localeCompare(nb);
+  });
+
+  packs = [defaultPack, ...installed, ...uninstalled].filter(Boolean);
+
+  const thumbDir2 = getThumbnailDir();
+  resolveLocalThumbnails(packs, wsDir, thumbDir2);
 
   let disabledSet = new Set();
 
@@ -212,10 +287,14 @@ async function resolvePacksWithSave(steamId) {
   }
 
   for (const pack of packs) {
-    pack.enabled = !disabledSet.has(pack.id);
+    if (pack.installed) {
+      pack.enabled = !disabledSet.has(pack.id);
+    } else {
+      pack.enabled = false;
+    }
   }
 
-  const unknownIds = packs.filter(p => !p.name && !p.isDefault).map(p => p.id);
+  const unknownIds = packs.filter(p => !p.name && !p.isDefault && p.installed).map(p => p.id);
   if (unknownIds.length > 0 && !settings.offlineMode) {
     workshopFetcher.queueIds(unknownIds);
   }
@@ -223,11 +302,9 @@ async function resolvePacksWithSave(steamId) {
   return packs;
 }
 
-// Serve static
 app.use('/renderer', express.static(path.join(__dirname, 'renderer')));
 app.use('/thumbs', express.static(getThumbnailDir()));
 
-// API
 app.get('/api/status', (req, res) => {
   const gp = getGamePath();
   const detected = detectGamePath();
@@ -240,6 +317,11 @@ app.get('/api/status', (req, res) => {
     offlineMode: settings.offlineMode,
     workshopPath: settings.workshopPath || null,
     workshopDir: getWorkshopDir(),
+    embedGame: settings.embedGame,
+    fullscreen: settings.fullscreen,
+    killHotkey: settings.killHotkey,
+    embedding: gameLauncher.isEmbedding(),
+    killHotkeyActive: gameLauncher.isKillHotkeyActive(),
   });
 });
 
@@ -264,6 +346,20 @@ app.post('/api/settings', (req, res) => {
   }
   if (req.body.workshopPath !== undefined) {
     settings.workshopPath = req.body.workshopPath || null;
+  }
+  if (req.body.embedGame !== undefined) {
+    settings.embedGame = !!req.body.embedGame;
+  }
+  if (req.body.fullscreen !== undefined) {
+    settings.fullscreen = !!req.body.fullscreen;
+    const win = getMainWindow();
+    if (win && !win.isDestroyed() && win.isFullScreen() !== settings.fullscreen) {
+      win.setFullScreen(settings.fullscreen);
+    }
+  }
+  if (req.body.killHotkey !== undefined) {
+    settings.killHotkey = typeof req.body.killHotkey === 'string' ? req.body.killHotkey.trim() : '';
+    gameLauncher.updateKillHotkey(settings.killHotkey);
   }
   saveSettings(settings);
   res.json({ success: true, offlineMode: settings.offlineMode });
@@ -296,7 +392,6 @@ app.post('/api/write-save/:steamId', async (req, res) => {
       return res.status(400).json({ error: 'disabledClipPacks must be an array' });
     }
 
-    // Preserve uninstalled pack IDs that the game still references
     try {
       const currentData = await readSave(saveEntry.path, gamePath);
       const currentDisabled = currentData.disabledClipPacks || [];
@@ -345,7 +440,26 @@ app.get('/api/fetcher-status', (req, res) => {
   res.json(workshopFetcher.getStatus());
 });
 
-app.post('/api/start-game', (req, res) => {
+app.get('/api/pack-installed/:workshopId', (req, res) => {
+  const wsDir = getWorkshopDir();
+  const exists = wsDir && fs.existsSync(path.join(wsDir, req.params.workshopId));
+  res.json({ installed: !!exists });
+});
+
+app.post('/api/catalog/refresh', async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'Steam API key is required' });
+    }
+    workshopCatalog.refresh(apiKey);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/start-game', async (req, res) => {
   const gp = getGamePath();
   if (!gp || !fs.existsSync(gp)) {
     return res.status(400).json({ error: 'Game path not configured or not found' });
@@ -354,12 +468,58 @@ app.post('/api/start-game', (req, res) => {
   if (!fs.existsSync(exe)) {
     return res.status(400).json({ error: 'WhatTheDub.exe not found' });
   }
+
+  if (gameLauncher.isEmbedding()) {
+    return res.json({ success: true, embedded: true, already: true });
+  }
+
+  if (isGameRunning()) {
+    return res.json({ success: true, embedded: false, already: true, error: 'Game is already running' });
+  }
+
+  const canEmbed =
+    settings.embedGame &&
+    getMainWindow() &&
+    gameLauncher.isAvailable();
+
+  if (canEmbed) {
+    try {
+      const result = await gameLauncher.startEmbedded(gp, settings.killHotkey);
+      if (result && result.embedded) {
+        return res.json({ success: true, embedded: true });
+      }
+      console.warn(`Embed unavailable (${result && result.reason}); launching normally`);
+    } catch (e) {
+      console.warn(`Embed failed (${e.message}); launching normally`);
+    }
+  }
+
   const { exec } = require('child_process');
   exec(`start "" "${exe}"`, { cwd: gp, windowsHide: true });
-  res.json({ success: true });
+  res.json({ success: true, embedded: false });
 });
 
-// Music replacement endpoints
+let quitHandler = null;
+function setQuitHandler(fn) {
+  quitHandler = fn;
+}
+
+app.post('/api/quit', (req, res) => {
+  try {
+    if (gameLauncher.isEmbedding()) {
+      gameLauncher.stopEmbedded();
+    }
+  } catch {}
+  res.json({ success: true });
+  setTimeout(() => {
+    if (typeof quitHandler === 'function') {
+      quitHandler();
+    } else {
+      process.exit(0);
+    }
+  }, 150);
+});
+
 app.get('/api/music/status', async (req, res) => {
   try {
     const ffmpegAvailable = await checkFfmpeg();
@@ -373,9 +533,6 @@ app.get('/api/music/clips', async (req, res) => {
   try {
     const gamePath = getGamePath();
     if (!gamePath) return res.status(400).json({ error: 'Game path not configured' });
-
-    const bundlePath = path.join(gamePath, 'WhatTheDub_Data', 'StreamingAssets', 'AssetBundles', 'audio-manager');
-    if (!fs.existsSync(bundlePath)) return res.status(404).json({ error: 'Audio bundle not found' });
 
     const clips = await listClips(gamePath);
     res.json(clips);
@@ -458,23 +615,6 @@ app.post('/api/music/replace-batch', upload.single('audioFile'), async (req, res
   }
 });
 
-app.post('/api/music/extract', async (req, res) => {
-  try {
-    const gamePath = getGamePath();
-    if (!gamePath) return res.status(400).json({ error: 'Game path not configured' });
-
-    const { clipName, outputPath } = req.body;
-    if (!clipName || !outputPath) {
-      return res.status(400).json({ error: 'clipName and outputPath are required' });
-    }
-
-    const result = await extractClip(gamePath, clipName, outputPath);
-    res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
 app.post('/api/music/restore', async (req, res) => {
   try {
     if (isGameRunning()) {
@@ -501,6 +641,8 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 io.on('connection', () => {});
 
+gameLauncher.setIo(io);
+
 server.listen(PORT, async () => {
   console.log(`WTD Pack Picker running at http://localhost:${PORT}`);
   console.log(`Offline mode: ${settings.offlineMode ? 'ON' : 'OFF'}`);
@@ -509,9 +651,10 @@ server.listen(PORT, async () => {
   console.log(`Saves found: ${getSavePaths().length}`);
   console.log(`Cache: ${cacheManager.getSummary().total} names cached`);
 
-  // Only auto-open browser when launched directly (not via Electron)
   if (!process.versions.electron) {
     const { exec } = require('child_process');
     exec(`start "" "http://localhost:${PORT}"`, () => {});
   }
 });
+
+module.exports = { getSettings: () => settings, setQuitHandler };

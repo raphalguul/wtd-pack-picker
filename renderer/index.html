@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WTD Pack Picker</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <div id="loading">
@@ -28,8 +28,10 @@
           <button id="btn-apply" class="apply-btn">Apply</button>
           <button id="btn-start-game">Start Game</button>
           <button id="btn-music" class="music-btn">♫ Music</button>
+          <button id="btn-refresh-catalog" class="refresh-btn">Refresh</button>
           <button id="btn-presets" class="preset-btn">Presets ▾</button>
           <button id="btn-settings" class="settings-btn">⚙</button>
+          <button id="btn-quit" class="quit-btn">⏻ Quit</button>
         </div>
       </div>
       <div id="preset-menu" class="dropdown hidden">
@@ -76,7 +78,12 @@
     </div>
   </div>
 
+  <div id="context-menu" class="context-menu hidden">
+    <div class="context-menu-item hidden" id="ctx-add-pack">Add Pack</div>
+    <div class="context-menu-item hidden" id="ctx-remove-pack">Remove Pack</div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

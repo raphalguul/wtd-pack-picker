@@ -9,6 +9,11 @@ Write-Host "Building C# save handler..."
 & (Join-Path $PSScriptRoot "save-handler\build.ps1")
 if ($LASTEXITCODE -ne 0) { throw "C# build failed with exit code $LASTEXITCODE" }
 
+# Build C# window embed helper
+Write-Host "Building C# window embed helper..."
+& (Join-Path $PSScriptRoot "window-embed\build.ps1")
+if ($LASTEXITCODE -ne 0) { throw "Window embed build failed with exit code $LASTEXITCODE" }
+
 # Build Python audio handler
 Write-Host "Building Python audio handler..."
 & (Join-Path $PSScriptRoot "audio-handler\build.ps1")
