@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WTD Pack Picker</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div id="loading">
@@ -31,7 +31,13 @@
           <button id="btn-refresh-catalog" class="refresh-btn">Refresh</button>
           <button id="btn-presets" class="preset-btn">Presets ▾</button>
           <button id="btn-settings" class="settings-btn">⚙</button>
-          <button id="btn-quit" class="quit-btn">⏻ Quit</button>
+          <button id="btn-quit" class="quit-btn">
+            <svg class="quit-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 2v10"/>
+              <path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>
+            </svg>
+            Quit
+          </button>
         </div>
       </div>
       <div id="preset-menu" class="dropdown hidden">
