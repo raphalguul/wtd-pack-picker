@@ -22,12 +22,35 @@ if ($LASTEXITCODE -ne 0) { throw "Python build failed with exit code $LASTEXITCO
 # Install deps
 Write-Host "Installing dependencies..."
 Push-Location $PSScriptRoot
-$prev = $ErrorActionPreference
-$ErrorActionPreference = "SilentlyContinue"
-cmd /c "npm install --omit=dev --no-audit --no-fund --loglevel=error 2>&1"
-cmd /c "npm install electron electron-builder --save-dev --no-audit --no-fund --loglevel=error 2>&1"
-$ErrorActionPreference = $prev
-Pop-Location
+try {
+    npm ci --include=dev --no-audit --no-fund --loglevel=error
+    if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
+} finally {
+    Pop-Location
+}
+
+$electronDir = Join-Path $PSScriptRoot "node_modules\electron"
+$electronExe = Join-Path $electronDir "dist\electron.exe"
+$electronPath = Join-Path $electronDir "path.txt"
+if (-not (Test-Path $electronExe) -or -not (Test-Path $electronPath)) {
+    Write-Host "Electron binary missing; extracting from local cache..."
+    $electronVersion = (Get-Content (Join-Path $electronDir "package.json") | ConvertFrom-Json).version
+    $cacheRoot = Join-Path $env:LOCALAPPDATA "electron\Cache"
+    $zip = Get-ChildItem $cacheRoot -Recurse -Filter "electron-v$electronVersion-win32-x64.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $zip) {
+        throw "Electron install is incomplete and no cached Electron zip was found. Remove node_modules and rerun."
+    }
+
+    $dist = Join-Path $electronDir "dist"
+    if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
+    New-Item -ItemType Directory -Path $dist | Out-Null
+    Expand-Archive -LiteralPath $zip.FullName -DestinationPath $dist -Force -ErrorAction Stop
+    [System.IO.File]::WriteAllText($electronPath, "electron.exe")
+}
+
+if (-not (Test-Path $electronExe) -or -not (Test-Path $electronPath)) {
+    throw "Electron install is incomplete (missing electron.exe or path.txt)."
+}
 
 # Run electron-builder
 Write-Host "Building NSIS installer..."
