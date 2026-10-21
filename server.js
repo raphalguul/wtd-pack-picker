@@ -482,11 +482,17 @@ app.post('/api/start-game', async (req, res) => {
     getMainWindow() &&
     gameLauncher.isAvailable();
 
+  let embedError = null;
   if (canEmbed) {
     try {
       const result = await gameLauncher.startEmbedded(gp, settings.killHotkey);
       if (result && result.embedded) {
         return res.json({ success: true, embedded: true });
+      }
+      if (result && result.reason === 'steam-appid-write-failed') {
+        embedError = `Embedded launch unavailable: could not write steam_appid.txt${
+          result.error ? ` (${result.error})` : ''
+        }. Launched normally.`;
       }
       console.warn(`Embed unavailable (${result && result.reason}); launching normally`);
     } catch (e) {
@@ -496,7 +502,9 @@ app.post('/api/start-game', async (req, res) => {
 
   const { exec } = require('child_process');
   exec(`start "" "${exe}"`, { cwd: gp, windowsHide: true });
-  res.json({ success: true, embedded: false });
+  const response = { success: true, embedded: false };
+  if (embedError) response.error = embedError;
+  res.json(response);
 });
 
 let quitHandler = null;

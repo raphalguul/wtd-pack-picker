@@ -1,6 +1,6 @@
 {
   "name": "wtd-pack-picker",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "External pack selector for What The Dub",
   "main": "main.js",
   "scripts": {
