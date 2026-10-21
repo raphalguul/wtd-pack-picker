@@ -28,6 +28,56 @@ const socket = io();
 socket.on('embed-start', () => document.body.classList.add('embed-mode'));
 socket.on('embed-stop', () => document.body.classList.remove('embed-mode'));
 
+let updateState = {
+  state: 'idle',
+  currentVersion: null,
+  availableVersion: null,
+  percent: 0,
+  error: null,
+};
+
+function describeUpdate(update) {
+  if (!update) return '';
+  switch (update.state) {
+    case 'checking':
+      return 'Checking for updates...';
+    case 'available':
+      return `Update available: v${update.availableVersion}`;
+    case 'downloading':
+      return `Downloading update: ${update.percent || 0}%`;
+    case 'downloaded':
+      return 'Update downloaded. Restart to install.';
+    case 'none':
+      return 'You are running the latest version.';
+    case 'unsupported':
+      return update.error || 'Updates are unavailable in this build.';
+    case 'error':
+      return `Update check failed: ${update.error}`;
+    case 'installing':
+      return 'Installing update...';
+    default:
+      return '';
+  }
+}
+
+function renderUpdateStatus() {
+  const el = document.getElementById('settings-update-status');
+  if (!el) return;
+  el.textContent = describeUpdate(updateState);
+  el.classList.toggle('hidden', !el.textContent);
+}
+
+socket.on('update:status', (update) => {
+  updateState = update;
+  renderUpdateStatus();
+});
+
+socket.on('update:progress', (percent) => {
+  if (updateState.state !== 'downloading') return;
+  updateState = { ...updateState, percent };
+  renderUpdateStatus();
+});
+
 async function api(url, opts = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -384,6 +434,17 @@ function showSettings(force = false) {
           </div>
           <span class="settings-hint">Click the box and press a combo (e.g. Alt+X). Leave empty to disable.</span>
         </div>
+        <div class="settings-section">
+          <div class="settings-section-title">Updates</div>
+          <div class="settings-field">
+            <label>Version</label>
+            <div class="settings-version-row">
+              <span id="settings-version">v${status.version || 'Unknown'}</span>
+              <button id="settings-check-update">Check for Updates</button>
+            </div>
+            <span class="settings-hint hidden" id="settings-update-status"></span>
+          </div>
+        </div>
         <div class="settings-actions">
           <button id="settings-cancel">Cancel</button>
           <button id="settings-save">Save</button>
@@ -392,6 +453,9 @@ function showSettings(force = false) {
     `;
 
     document.body.appendChild(overlay);
+
+    if (status.update) updateState = status.update;
+    renderUpdateStatus();
 
     // Hotkey recorder
     const hotkeyInput = $('#settings-kill-hotkey');
@@ -427,6 +491,20 @@ function showSettings(force = false) {
     $('#settings-kill-hotkey-clear').addEventListener('click', () => {
       hotkeyInput.dataset.acc = '';
       hotkeyInput.value = '';
+    });
+
+    $('#settings-check-update').addEventListener('click', async () => {
+      const btn = $('#settings-check-update');
+      btn.disabled = true;
+      try {
+        const result = await api('/api/update/check', { method: 'POST' });
+        if (result) updateState = result;
+        renderUpdateStatus();
+      } catch (e) {
+        showError(e.message);
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     overlay.addEventListener('click', (e) => {

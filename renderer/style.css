@@ -478,6 +478,24 @@ button:active {
   cursor: pointer;
 }
 
+.settings-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+#settings-check-update {
+  flex: none;
+  padding: 6px 12px;
+}
+
+#settings-check-update:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .settings-section {
   margin-top: 12px;
   padding-top: 10px;

@@ -28,6 +28,20 @@ npm start
 powershell -ExecutionPolicy Bypass -File build-release.ps1
 ```
 
+## Releases and auto-updates
+
+Packaged builds check GitHub Releases for updates on startup. To publish a new version:
+
+1. Bump `version` in `package.json`.
+2. Run `build-release.ps1`.
+3. Create a GitHub release whose tag matches the version (for example `3.0.2`).
+4. Upload these files from `release/` **without renaming them**:
+   - `WTD-Pack-Picker-Setup-<version>.exe`
+   - `WTD-Pack-Picker-Setup-<version>.exe.blockmap`
+   - `latest.yml`
+
+`latest.yml` must reference the exact installer filename that is uploaded. The `.blockmap` is optional but enables differential updates, so users only download the parts of the installer that changed. Auto-updates only work for versions that already include the updater, so the first update-enabled release must be installed manually.
+
 ## Features
 
 - Shows all installed clip packs (you may have to point the app to your game installation folder and workshop folder if it cannot autodetect them)

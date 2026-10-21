@@ -13,6 +13,7 @@ const { PresetManager } = require('./lib/presets');
 const { findLocalThumbnail, findWorkshopDirs } = require('./lib/thumbnail-scanner');
 const { WorkshopCatalog } = require('./lib/workshop-catalog');
 const gameLauncher = require('./lib/game-launcher');
+const updater = require('./lib/updater');
 const { getMainWindow } = require('./lib/app-window');
 
 const app = express();
@@ -309,6 +310,8 @@ app.get('/api/status', (req, res) => {
   const gp = getGamePath();
   const detected = detectGamePath();
   res.json({
+    version: updater.getVersion(),
+    update: updater.getStatus(),
     gamePath: gp,
     gamePathValid: gp && fs.existsSync(gp),
     gamePathDetected: detected,
@@ -323,6 +326,19 @@ app.get('/api/status', (req, res) => {
     embedding: gameLauncher.isEmbedding(),
     killHotkeyActive: gameLauncher.isKillHotkeyActive(),
   });
+});
+
+app.get('/api/update/status', (req, res) => {
+  res.json(updater.getStatus());
+});
+
+app.post('/api/update/check', async (req, res) => {
+  try {
+    const result = await updater.check({ silent: false });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/settings', (req, res) => {
@@ -648,6 +664,9 @@ const { Server } = require('socket.io');
 const io = new Server(server, { cors: { origin: '*' } });
 
 io.on('connection', () => {});
+
+updater.events.on('status', (updateStatus) => io.emit('update:status', updateStatus));
+updater.events.on('progress', (percent) => io.emit('update:progress', percent));
 
 gameLauncher.setIo(io);
 

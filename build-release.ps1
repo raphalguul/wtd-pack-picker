@@ -56,7 +56,7 @@ if (-not (Test-Path $electronExe) -or -not (Test-Path $electronPath)) {
 Write-Host "Building NSIS installer..."
 Push-Location $PSScriptRoot
 $env:ELECTRON_SKIP_BINARY_DOWNLOAD = "0"
-npx electron-builder --win *>&1 | ForEach-Object { if ($_ -isnot [System.Management.Automation.ErrorRecord]) { $_ } }
+npx electron-builder --win --publish never *>&1 | ForEach-Object { if ($_ -isnot [System.Management.Automation.ErrorRecord]) { $_ } }
 if ($LASTEXITCODE -ne 0) { throw "electron-builder failed with exit code $LASTEXITCODE" }
 Pop-Location
 

@@ -1,6 +1,6 @@
 {
   "name": "wtd-pack-picker",
-  "version": "3.0.1",
+  "version": "3.2.0",
   "description": "External pack selector for What The Dub",
   "main": "main.js",
   "scripts": {
@@ -8,9 +8,10 @@
     "dev": "node server.js",
     "build-save-handler": "powershell -ExecutionPolicy Bypass -File save-handler/build.ps1",
     "build-window-embed": "powershell -ExecutionPolicy Bypass -File window-embed/build.ps1",
-    "dist": "electron-builder"
+    "dist": "electron-builder --publish never"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "express": "^4.18.2",
     "multer": "^2.2.0",
     "socket.io": "^4.8.1"
@@ -54,8 +55,15 @@
       "!**/docs/**",
       "!**/*.md"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "raphalguul",
+      "repo": "wtd-pack-picker",
+      "releaseType": "release"
+    },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "WTD-Pack-Picker-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
